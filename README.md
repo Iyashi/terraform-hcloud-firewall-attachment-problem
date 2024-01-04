@@ -2,6 +2,8 @@
 
 Example terraform code to reproduce firewall attachment problem in HetznerCloud.
 
+This repo was created for [hetznercloud/terraform-provider-hcloud/issues/828](https://github.com/hetznercloud/terraform-provider-hcloud/issues/828).
+
 ## Setup
 
 1. Create new empty project in Hetzner Cloud
@@ -13,7 +15,7 @@ Example terraform code to reproduce firewall attachment problem in HetznerCloud.
    terraform apply # some-service firewall gets detached again. why?
    ```
 
-## What the problem?
+## What is the problem?
 
 The first `terraform apply` works fine, everything is set up correctly, including firewalls.
 
