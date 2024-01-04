@@ -7,7 +7,7 @@ This repo was created for [hetznercloud/terraform-provider-hcloud/issues/828](ht
 ## Setup
 
 1. Create new empty project in Hetzner Cloud
-2. Create project API token and save it to `terraform.tfvars`
+2. Create project API token and save it to `terraform.tfvars` (`hcloud_api_token = "<token>"`)
 3. Initialize and apply (2x) terraform
    ```sh
    terraform init
