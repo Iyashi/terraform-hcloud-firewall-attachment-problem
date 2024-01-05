@@ -26,29 +26,6 @@ resource "hcloud_server" "some_service" {
   server_type       = "cx11"
   image             = "debian-12"
   ssh_keys          = [ hcloud_ssh_key.maintainance_default.id ]
-
-  # initialize server with firewalls required for maintainance
-  # (required to resolve domains, download packages and connect via ssh)
-  firewall_ids = [
-    hcloud_firewall.maintainance_dns.id,
-    hcloud_firewall.maintainance_web.id,
-    hcloud_firewall.maintainance_ssh.id,
-  ]
-
-  # this requires the maintainance-ssh firewall to be attached to the server
-  connection {
-    host        = "${self.ipv4_address}"
-    type        = "ssh"
-    user        = "root"
-    port        = 22
-    private_key = tls_private_key.default.private_key_openssh
-  }
-
-  # install ansible on remote machine
-  # this requires the maintainance-dns and maintainanace-web firewalls to be attached to the server
-  provisioner "remote-exec" {
-    inline = ["apt-get update -y && apt-get upgrade -y && apt-get install -y ansible"]
-  }
 }
 
 ###################################
@@ -72,7 +49,47 @@ resource "hcloud_firewall" "some_service" {
   }
 }
 
-resource "hcloud_firewall_attachment" "some_service" {
-  firewall_id = hcloud_firewall.some_service.id
-  server_ids  = [hcloud_server.some_service.id]
+# resource "hcloud_firewall_attachment" "some_service" {
+#   firewall_id = hcloud_firewall.some_service.id
+#   server_ids  = [hcloud_server.some_service.id]
+# }
+
+####################
+#### Workaround ####
+####################
+
+locals {
+  some_service_firewall_ids = [
+    hcloud_firewall.maintainance_dns.id,
+    hcloud_firewall.maintainance_web.id,
+    hcloud_firewall.maintainance_ssh.id,
+    hcloud_firewall.some_service.id,
+  ]
+  some_service_firewall_ids_string = join(",", local.some_service_firewall_ids)
+}
+
+# count hack for "known after apply" values from https://stackoverflow.com/a/76692461/3206306
+resource "hcloud_firewall_attachment" "some_service_all_firewalls" {
+  count       = length(local.some_service_firewall_ids)
+  firewall_id = split(",", local.some_service_firewall_ids_string)[count.index]
+  server_ids  = [ hcloud_server.some_service.id ]
+}
+
+resource "null_resource" "some_service_server_setup" {
+  depends_on = [ hcloud_server.some_service, hcloud_firewall_attachment.some_service_all_firewalls ]
+
+  # this requires the maintainance-ssh firewall to be attached to the server
+  connection {
+    host        = "${hcloud_server.some_service.ipv4_address}"
+    type        = "ssh"
+    user        = "root"
+    port        = 22
+    private_key = tls_private_key.default.private_key_openssh
+  }
+
+  # install ansible on remote machine
+  # this requires the maintainance-dns and maintainanace-web firewalls to be attached to the server
+  provisioner "remote-exec" {
+    inline = ["apt-get update -y && apt-get upgrade -y && apt-get install -y ansible"]
+  }
 }
